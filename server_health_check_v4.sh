@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Parse command-line arguments
 while getopts "i:o:" opt; do
   case ${opt} in
     i )
@@ -21,12 +20,6 @@ while getopts "i:o:" opt; do
 done
 shift $((OPTIND -1))
 
-# Ensure the key path and output directory are set
-if [ -z "$KEY_PATH" ] || [ -z "$OUTPUT_DIR" ]; then
-  echo "Usage: $0 -i <path_to_key> -o <output_directory>"
-  exit 1
-fi
-
 # Create folders for categorized output
 ALL_DIR="$OUTPUT_DIR/all"
 INTERMEDIATE_DIR="$OUTPUT_DIR/intermediate"
@@ -45,28 +38,36 @@ if [ -z "$SERVER_LIST" ]; then
   exit 1
 fi
 
-# Process each server IP
 SERVER_LIST=$(echo "$SERVER_LIST" | tr '\t' '\n' | tr ' ' '\n')
 
 for SERVER_IP in $SERVER_LIST; do
-    echo "Processing server: '$SERVER_IP'"
+    echo "Processing server: $SERVER_IP"
     
     if [ -z "$SERVER_IP" ]; then
         echo "Empty IP address found. Skipping..."
         continue
     fi
 
-    # Detect the distribution of the remote server
-    DISTRO=$(ssh -i "$KEY_PATH" $USER@$SERVER_IP "grep '^ID=' /etc/os-release | cut -d '=' -f 2 | tr -d '\"'")
-
+    # Detect the distribution and user of the remote server
+    DISTRO=$(ssh -i "$KEY_PATH" ubuntu@$SERVER_IP "grep '^ID=' /etc/os-release | cut -d '=' -f 2 | tr -d '\"'" 2>/dev/null)
+    
+    # Debug output to verify distribution detection
+    echo "Detected distribution ID: $DISTRO"
+    
     if [ "$DISTRO" == "amzn" ]; then
         USER="ec2-user"
     elif [ "$DISTRO" == "centos" ] || [ "$DISTRO" == "rhel" ]; then
         USER="centos"
-    else
+    elif [ "$DISTRO" == "ubuntu" ]; then
         USER="ubuntu"
+    else
+        echo "Unsupported distribution: $DISTRO. Skipping $SERVER_IP."
+        continue
     fi
-
+    
+    # Debug output to verify user
+    echo "Using user $USER for $SERVER_IP"
+    
     # Send the script to the server
     rsync -avz -e "ssh -i $KEY_PATH" /home/$USER/server_health_check.sh $USER@$SERVER_IP:/home/$USER/
 
@@ -130,10 +131,7 @@ for SERVER_IP in $SERVER_LIST; do
     " > "$OUTPUT_FILE"
 
     # Categorize the output based on criteria
-    DISK_USAGE=$(grep "Disk Usage" "$OUTPUT_FILE")
-    UPTIME_LOAD=$(grep "Uptime and Load Averages" "$OUTPUT_FILE")
-
-    if grep -q "100%" <<< "$DISK_USAGE"; then
+    if grep -q "0 available" <<< "$DISK_USAGE"; then
         mv "$OUTPUT_FILE" "$CRITICAL_DIR/"
     elif grep -q "load average:" <<< "$UPTIME_LOAD" && [[ "$(echo $UPTIME_LOAD | awk '{print $10}')" > 2.0 ]]; then
         mv "$OUTPUT_FILE" "$INTERMEDIATE_DIR/"
