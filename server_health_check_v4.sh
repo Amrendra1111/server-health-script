@@ -65,64 +65,72 @@ for SERVER_IP in $SERVER_LIST; do
     # Execute the health check script on the server and retrieve the output
     OUTPUT_FILE="$OUTPUT_DIR/server_health_output_$SERVER_IP.txt"
     ssh -i "$KEY_PATH" $USER@$SERVER_IP "
-      echo '===== SERVER HEALTH CHECK: $SERVER_IP =====';
+      echo '===== SERVER HEALTH CHECK: $SERVER_IP =====' > server_health_output.txt;
       
-      echo '';
-      echo '*** Disk Usage (df -h) ***';
+      echo '' >> server_health_output.txt;
+      echo '*** Disk Usage (df -h) ***' >> server_health_output.txt;
       DISK_USAGE=\$(df -h);
-      echo \"\$DISK_USAGE\";
+      echo \"\$DISK_USAGE\" >> server_health_output.txt;
       
-      echo '';
-      echo '*** Memory and Swap Usage (free -g) ***';
+      echo '' >> server_health_output.txt;
+      echo '*** Memory and Swap Usage (free -g) ***' >> server_health_output.txt;
       MEMORY_USAGE=\$(free -g);
-      echo \"\$MEMORY_USAGE\";
+      echo \"\$MEMORY_USAGE\" >> server_health_output.txt;
       
-      echo '';
-      echo '*** Number of CPUs (nproc) ***';
+      echo '' >> server_health_output.txt;
+      echo '*** Number of CPUs (nproc) ***' >> server_health_output.txt;
       CPU_COUNT=\$(nproc);
-      echo \"\$CPU_COUNT\";
+      echo \"\$CPU_COUNT\" >> server_health_output.txt;
       
-      echo '';
-      echo '*** Uptime and Load Averages (uptime) ***';
+      echo '' >> server_health_output.txt;
+      echo '*** Uptime and Load Averages (uptime) ***' >> server_health_output.txt;
       UPTIME_LOAD=\$(uptime);
-      echo \"\$UPTIME_LOAD\";
+      echo \"\$UPTIME_LOAD\" >> server_health_output.txt;
       
-      echo '';
-      echo '*** Top Memory-Consuming Processes (ps aux --sort=-%mem | head) ***';
+      echo '' >> server_health_output.txt;
+      echo '*** Top Memory-Consuming Processes (ps aux --sort=-%mem | head) ***' >> server_health_output.txt;
       TOP_PROCESSES=\$(ps aux --sort=-%mem | head);
-      echo \"\$TOP_PROCESSES\";
+      echo \"\$TOP_PROCESSES\" >> server_health_output.txt;
       
-      echo '';
+      echo '' >> server_health_output.txt;
       if command -v netstat &> /dev/null; then
         OPEN_PORTS=\$(netstat -tuln);
-        echo '*** Open Ports and Services (netstat -tuln) ***';
-        echo \"\$OPEN_PORTS\";
+        echo '*** Open Ports and Services (netstat -tuln) ***' >> server_health_output.txt;
+        echo \"\$OPEN_PORTS\" >> server_health_output.txt;
       elif command -v ss &> /dev/null; then
         OPEN_PORTS=\$(ss -tuln);
-        echo '*** Open Ports and Services (ss -tuln) ***';
-        echo \"\$OPEN_PORTS\";
+        echo '*** Open Ports and Services (ss -tuln) ***' >> server_health_output.txt;
+        echo \"\$OPEN_PORTS\" >> server_health_output.txt;
       else
-        echo 'Neither netstat nor ss is available on this system.';
+        echo 'Neither netstat nor ss is available on this system.' >> server_health_output.txt;
       fi
       
-      echo '';
+      echo '' >> server_health_output.txt;
       if [ -f /var/log/syslog ]; then
         LOG_ENTRIES=\$(tail -n 5 /var/log/syslog);
-        echo '*** Recent System Log Entries (tail -n 100 /var/log/syslog) ***';
-        echo \"\$LOG_ENTRIES\";
+        echo '*** Recent System Log Entries (tail -n 100 /var/log/syslog) ***' >> server_health_output.txt;
+        echo \"\$LOG_ENTRIES\" >> server_health_output.txt;
       elif [ -f /var/log/messages ]; then
         LOG_ENTRIES=\$(tail -n 5 /var/log/messages);
-        echo '*** Recent System Log Entries (tail -n 100 /var/log/messages) ***';
-        echo \"\$LOG_ENTRIES\";
+        echo '*** Recent System Log Entries (tail -n 100 /var/log/messages) ***' >> server_health_output.txt;
+        echo \"\$LOG_ENTRIES\" >> server_health_output.txt;
       else
-        echo 'No system log file found.';
+        echo 'No system log file found.' >> server_health_output.txt;
       fi
       
-      echo '===== END OF CHECK =====';
+      echo '===== END OF CHECK =====' >> server_health_output.txt;
+      
+      # Returning relevant outputs for categorization
+      echo \"\$DISK_USAGE\";
+      echo \"\$UPTIME_LOAD\";
     " > "$OUTPUT_FILE"
 
+    # Capture DISK_USAGE and UPTIME_LOAD for categorization
+    DISK_USAGE=$(ssh -i "$KEY_PATH" $USER@$SERVER_IP "df -h")
+    UPTIME_LOAD=$(ssh -i "$KEY_PATH" $USER@$SERVER_IP "uptime")
+
     # Categorize the output based on criteria
-    if grep -q "0 available" <<< "$DISK_USAGE"; then
+    if grep -q "100%" <<< "$DISK_USAGE"; then
         mv "$OUTPUT_FILE" "$CRITICAL_DIR/"
     elif grep -q "load average:" <<< "$UPTIME_LOAD" && [[ "$(echo $UPTIME_LOAD | awk '{print $10}')" > 2.0 ]]; then
         mv "$OUTPUT_FILE" "$INTERMEDIATE_DIR/"
