@@ -57,7 +57,7 @@ for SERVER_IP in $SERVER_LIST; do
     fi
 
     # Detect the distribution of the remote server
-    DISTRO=$(ssh -i "$KEY_PATH" ubuntu@$SERVER_IP "grep '^ID=' /etc/os-release | cut -d '=' -f 2 | tr -d '\"'")
+    DISTRO=$(ssh -i "$KEY_PATH" $USER@$SERVER_IP "grep '^ID=' /etc/os-release | cut -d '=' -f 2 | tr -d '\"'")
 
     if [ "$DISTRO" == "amzn" ]; then
         USER="ec2-user"
