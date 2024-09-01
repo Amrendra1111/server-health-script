@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ "$1" == "get" ] && [ "$2" == "health" ]; then
+    curl -s https://raw.githubusercontent.com/Amrendra1111/server-health-script/master/server_health_check_v1.sh | bash
+else
+    echo "Usage: rsyncer get health"
+fi

@@ -1,0 +1,7 @@
+Package: rsyncer
+Version: 1.0
+Section: base
+Priority: optional
+Architecture: all
+Maintainer: Amrendra Kumar Singh <amrendra1111singh@gmail.com>
+Description: A script to fetch and execute the health check script from GitHub.
